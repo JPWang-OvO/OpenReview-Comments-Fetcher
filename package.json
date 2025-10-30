@@ -1,24 +1,24 @@
 {
-  "name": "zotero-plugin-template",
+  "name": "openreview-comments-fetcher",
   "type": "module",
-  "version": "3.1.0",
-  "description": "Zotero Plugin Template",
+  "version": "0.1.0",
+  "description": "A Zotero plugin to extract OpenReview comments and reviews for academic papers",
   "config": {
-    "addonName": "Zotero Plugin Template",
-    "addonID": "addontemplate@euclpts.com",
-    "addonRef": "addontemplate",
-    "addonInstance": "AddonTemplate",
-    "prefsPrefix": "extensions.zotero.addontemplate"
+    "addonName": "OpenReview Comments Fetcher",
+    "addonID": "openreview@zotero.plugin",
+    "addonRef": "openreview",
+    "addonInstance": "OpenReview",
+    "prefsPrefix": "extensions.zotero.openreview"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/windingwind/zotero-plugin-template.git"
+    "url": "git+https://github.com/your-username/zotero-openreview-plugin.git"
   },
-  "author": "windingwind",
+  "author": "Your Name",
   "bugs": {
-    "url": "https://github.com/windingwind/zotero-plugin-template/issues"
+    "url": "https://github.com/your-username/zotero-openreview-plugin/issues"
   },
-  "homepage": "https://github.com/windingwind/zotero-plugin-template#readme",
+  "homepage": "https://github.com/your-username/zotero-openreview-plugin#readme",
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "start": "zotero-plugin serve",
