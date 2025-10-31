@@ -157,18 +157,54 @@ export class DataProcessor {
   /**
    * 解析评分字符串
    */
-  static parseRating(ratingStr: string): number | undefined {
+  static parseRating(ratingStr: any): number | undefined {
+    // 处理不同类型的输入
+    if (ratingStr === null || ratingStr === undefined) {
+      return undefined;
+    }
+    
+    // 如果是数字类型，直接返回
+    if (typeof ratingStr === 'number') {
+      return ratingStr;
+    }
+    
+    // 如果是数组，取第一个元素
+    if (Array.isArray(ratingStr)) {
+      if (ratingStr.length === 0) return undefined;
+      return this.parseRating(ratingStr[0]);
+    }
+    
+    // 转换为字符串并解析
+    const str = String(ratingStr);
     // OpenReview评分通常是 "6: Marginally above the acceptance threshold" 这样的格式
-    const match = ratingStr.match(/^(\d+)/);
+    const match = str.match(/^(\d+)/);
     return match ? parseInt(match[1]) : undefined;
   }
 
   /**
    * 解析置信度字符串
    */
-  static parseConfidence(confidenceStr: string): number | undefined {
+  static parseConfidence(confidenceStr: any): number | undefined {
+    // 处理不同类型的输入
+    if (confidenceStr === null || confidenceStr === undefined) {
+      return undefined;
+    }
+    
+    // 如果是数字类型，直接返回
+    if (typeof confidenceStr === 'number') {
+      return confidenceStr;
+    }
+    
+    // 如果是数组，取第一个元素
+    if (Array.isArray(confidenceStr)) {
+      if (confidenceStr.length === 0) return undefined;
+      return this.parseConfidence(confidenceStr[0]);
+    }
+    
+    // 转换为字符串并解析
+    const str = String(confidenceStr);
     // 置信度通常是 "3: You are fairly confident in your assessment" 这样的格式
-    const match = confidenceStr.match(/^(\d+)/);
+    const match = str.match(/^(\d+)/);
     return match ? parseInt(match[1]) : undefined;
   }
 

@@ -139,7 +139,7 @@ export class OpenReviewClient {
           }
         } catch (parseError) {
           // 记录解析错误但不中断整个流程
-          console.warn('Failed to parse note:', note.id, parseError);
+          ztoolkit.log('Failed to parse note:', note.id, parseError);
         }
       }
       
@@ -223,16 +223,21 @@ export class OpenReviewClient {
     }
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), settings.requestTimeout);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers,
-        signal: controller.signal
+      // 创建超时Promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Request timeout'));
+        }, settings.requestTimeout);
       });
 
-      clearTimeout(timeoutId);
+      // 创建fetch Promise
+      const fetchPromise = fetch(url, {
+        method: 'GET',
+        headers
+      });
+
+      // 使用Promise.race实现超时机制
+      const response = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (!response.ok) {
         throw new OpenReviewError({
@@ -251,7 +256,7 @@ export class OpenReviewClient {
       }
       
       // 处理超时错误
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (error instanceof Error && error.message === 'Request timeout') {
         throw new OpenReviewError({
           type: ErrorType.NETWORK_ERROR,
           message: 'Request timeout',

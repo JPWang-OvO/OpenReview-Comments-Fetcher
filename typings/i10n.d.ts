@@ -11,8 +11,6 @@ export type FluentMessageId =
   | 'item-section-example2-sidenav-tooltip'
   | 'menuitem-filemenulabel'
   | 'menuitem-label'
-  | 'menuitem-submenulabel'
-  | 'menupopup-label'
   | 'pref-enable'
   | 'pref-help'
   | 'pref-input'

@@ -201,21 +201,19 @@ export class ErrorHandler {
   static logError(error: OpenReviewError, context?: string): void {
     const prefix = context ? `[${context}]` : '[OpenReview]';
     
-    console.group(`${prefix} Error: ${error.type}`);
-    console.error('Message:', error.message);
-    console.error('User Message:', error.userMessage);
+    ztoolkit.log(`${prefix} Error: ${error.type}`);
+    ztoolkit.log('Message:', error.message);
+    ztoolkit.log('User Message:', error.userMessage);
     
     if (error.statusCode) {
-      console.error('Status Code:', error.statusCode);
+      ztoolkit.log('Status Code:', error.statusCode);
     }
     
-    console.error('Retryable:', error.retryable);
+    ztoolkit.log('Retryable:', error.retryable);
     
     if (error.originalError) {
-      console.error('Original Error:', error.originalError);
+      ztoolkit.log('Original Error:', error.originalError);
     }
-    
-    console.groupEnd();
   }
 
   /**

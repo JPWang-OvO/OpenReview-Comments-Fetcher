@@ -78,7 +78,7 @@ export class OpenReviewSettingsManager {
       }
       return defaultValue;
     } catch (error) {
-      console.warn(`Failed to get preference ${prefKey}:`, error);
+      ztoolkit.log(`Failed to get preference ${prefKey}:`, error);
       return defaultValue;
     }
   }
@@ -92,7 +92,7 @@ export class OpenReviewSettingsManager {
     try {
       Zotero.Prefs.set(prefKey, value);
     } catch (error) {
-      console.error(`Failed to set preference ${prefKey}:`, error);
+      ztoolkit.log(`Failed to set preference ${prefKey}:`, error);
     }
   }
   

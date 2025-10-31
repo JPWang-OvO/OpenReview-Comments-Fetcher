@@ -150,28 +150,6 @@ export class UIExampleFactory {
   }
 
   @example
-  static registerRightClickMenuPopup(win: Window) {
-    ztoolkit.Menu.register(
-      "item",
-      {
-        tag: "menu",
-        label: getString("menupopup-label"),
-        children: [
-          {
-            tag: "menuitem",
-            label: getString("menuitem-submenulabel"),
-            oncommand: "alert('Hello World! Sub Menuitem.')",
-          },
-        ],
-      },
-      "before",
-      win.document?.querySelector(
-        "#zotero-itemmenu-addontemplate-test",
-      ) as XUL.MenuItem,
-    );
-  }
-
-  @example
   static registerWindowMenuWithSeparator() {
     ztoolkit.Menu.register("menuFile", {
       tag: "menuseparator",

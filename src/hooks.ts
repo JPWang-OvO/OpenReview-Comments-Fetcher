@@ -73,8 +73,6 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
 
   UIExampleFactory.registerRightClickMenuItem();
 
-  UIExampleFactory.registerRightClickMenuPopup(win);
-
   UIExampleFactory.registerWindowMenuWithSeparator();
 
   // Register OpenReview UI components

@@ -56,28 +56,35 @@ export class OpenReviewUIFactory {
   }
 
   /**
-   * 处理提取评论的主要逻辑
+   * 处理提取OpenReview评论的主要逻辑
    */
   static async handleExtractReviews() {
     let progressWin: any = null;
     
     try {
+      ztoolkit.log('[DEBUG] 开始提取OpenReview评论...');
+      
       // 获取选中的条目
       const selectedItems = Zotero.getActiveZoteroPane().getSelectedItems();
+      ztoolkit.log('[DEBUG] 获取到选中条目数量:', selectedItems.length);
       
       if (selectedItems.length === 0) {
+        ztoolkit.log('[DEBUG] 没有选中条目，显示警告');
         this.showMessage("请先选择一个条目", "warning");
         return;
       }
 
       if (selectedItems.length > 1) {
+        ztoolkit.log('[DEBUG] 选中了多个条目，显示警告');
         this.showMessage("请只选择一个条目", "warning");
         return;
       }
 
       const item = selectedItems[0];
+      ztoolkit.log('[DEBUG] 选中的条目ID:', item.id, '标题:', item.getField('title'));
       
       // 显示进度窗口
+      ztoolkit.log('[DEBUG] 创建进度窗口...');
       progressWin = new ztoolkit.ProgressWindow(addon.data.config.addonName, {
         closeOnClick: false,
         closeTime: -1,
@@ -88,22 +95,29 @@ export class OpenReviewUIFactory {
           progress: 0,
         })
         .show();
+      ztoolkit.log('[DEBUG] 进度窗口已显示');
 
       // 查找OpenReview URL
+      ztoolkit.log('[DEBUG] 开始查找OpenReview URL...');
       const openReviewUrl = await this.findOpenReviewUrl(item);
+      ztoolkit.log('[DEBUG] 找到的OpenReview URL:', openReviewUrl);
       
       if (!openReviewUrl) {
+        ztoolkit.log('[DEBUG] 未找到OpenReview URL，关闭进度窗口并显示错误');
         progressWin.close();
         this.showMessage("未找到OpenReview链接。请确保条目包含OpenReview URL。", "error");
         return;
       }
 
       // 验证URL格式
+      ztoolkit.log('[DEBUG] 开始验证URL格式...');
       try {
         ErrorHandler.validateInput(openReviewUrl, [
           ValidationRules.openReviewUrl()
         ]);
+        ztoolkit.log('[DEBUG] URL格式验证通过');
       } catch (validationError) {
+        ztoolkit.log('[DEBUG] URL格式验证失败:', validationError);
         progressWin.close();
         if (validationError instanceof OpenReviewError) {
           ErrorHandler.showUserError(validationError, "URL验证");
@@ -114,9 +128,12 @@ export class OpenReviewUIFactory {
       }
 
       // 提取forum ID
+      ztoolkit.log('[DEBUG] 开始提取forum ID...');
       const forumId = OpenReviewClient.extractForumId(openReviewUrl);
+      ztoolkit.log('[DEBUG] 提取到的forum ID:', forumId);
       
       if (!forumId) {
+        ztoolkit.log('[DEBUG] 无法提取forum ID，关闭进度窗口并显示错误');
         progressWin.close();
         this.showMessage("无法从URL中提取论文ID", "error");
         return;
@@ -126,78 +143,104 @@ export class OpenReviewUIFactory {
         progress: 30,
         text: `正在获取论文信息... (ID: ${forumId})`,
       });
+      ztoolkit.log('[DEBUG] 更新进度窗口，开始获取论文信息');
 
       // 创建客户端并获取数据
+      ztoolkit.log('[DEBUG] 创建OpenReview客户端...');
       const client = new OpenReviewClient();
       
       // 使用错误处理包装的方法获取论文数据
+      ztoolkit.log('[DEBUG] 开始获取论文数据...');
       const rawPaper = await ErrorHandler.executeWithRetry(
         () => client.getPaperWithReviews(forumId),
         OpenReviewSettingsManager.getCurrentSettings().maxRetries,
         (attempt, error) => {
+          ztoolkit.log(`[DEBUG] 重试第${attempt}次，错误:`, error);
           progressWin.changeLine({
             progress: 30 + (attempt * 10),
             text: `重试中... (第${attempt}次，错误: ${error.userMessage})`,
           });
         }
       );
+      ztoolkit.log('[DEBUG] 成功获取论文数据，评审数量:', rawPaper.reviews.length, '评论数量:', rawPaper.comments.length);
 
       progressWin.changeLine({
         progress: 70,
         text: `找到 ${rawPaper.reviews.length} 条评审和 ${rawPaper.comments.length} 条评论，正在处理数据...`,
       });
+      ztoolkit.log('[DEBUG] 更新进度窗口，开始处理数据');
 
       // 使用数据处理器处理数据
+      ztoolkit.log('[DEBUG] 开始处理论文数据...');
       const processedPaper = DataProcessor.processPaper(rawPaper);
+      ztoolkit.log('[DEBUG] 数据处理完成');
 
       // 生成格式化的HTML报告
+      ztoolkit.log('[DEBUG] 开始生成HTML报告...');
       const htmlReport = DataProcessor.generateHTMLReport(processedPaper);
+      ztoolkit.log('[DEBUG] HTML报告生成完成，长度:', htmlReport.length);
       
       // 获取用户设置
+      ztoolkit.log('[DEBUG] 获取用户设置...');
       const settings = OpenReviewSettingsManager.getCurrentSettings();
+      ztoolkit.log('[DEBUG] 用户设置:', { saveAsNote: settings.saveAsNote, saveAsAttachment: settings.saveAsAttachment });
       
       // 根据设置保存数据
       const savedItems: string[] = [];
       
       if (settings.saveAsNote) {
+        ztoolkit.log('[DEBUG] 开始保存为笔记...');
         await this.saveReviewsAsNote(item, htmlReport, processedPaper);
+        ztoolkit.log('[DEBUG] 笔记保存完成');
         savedItems.push("笔记");
       }
       
       if (settings.saveAsAttachment) {
+        ztoolkit.log('[DEBUG] 开始保存为附件...');
         // 为附件生成纯文本格式
         const textReport = DataProcessor.generateTextReport(processedPaper);
         await this.saveReviewsAsAttachment(item, textReport, processedPaper);
+        ztoolkit.log('[DEBUG] 附件保存完成');
         savedItems.push("附件");
       }
       
       // 如果用户没有选择任何保存方式，默认保存为笔记
       if (savedItems.length === 0) {
+        ztoolkit.log('[DEBUG] 没有选择保存方式，默认保存为笔记...');
         await this.saveReviewsAsNote(item, htmlReport, processedPaper);
+        ztoolkit.log('[DEBUG] 默认笔记保存完成');
         savedItems.push("笔记");
       }
 
+      ztoolkit.log('[DEBUG] 更新进度窗口为完成状态');
       progressWin.changeLine({
         progress: 100,
         text: "OpenReview评论提取完成！",
       });
 
       // 延迟关闭进度窗口
+      ztoolkit.log('[DEBUG] 设置延迟关闭进度窗口');
       setTimeout(() => {
+        ztoolkit.log('[DEBUG] 关闭进度窗口并显示成功消息');
         progressWin.close();
         const saveInfo = savedItems.length > 0 ? `，已保存为${savedItems.join("和")}` : "";
         this.showMessage(`成功提取 ${processedPaper.reviews.length} 条评审和 ${processedPaper.comments.length} 条评论${saveInfo}`, "success");
       }, 2000);
 
     } catch (error) {
+      ztoolkit.log('[DEBUG] 捕获到错误:', error);
+      ztoolkit.log('[DEBUG] 错误堆栈:', error instanceof Error ? error.stack : 'No stack trace');
+      
       if (progressWin) {
+        ztoolkit.log('[DEBUG] 关闭进度窗口');
         progressWin.close();
       }
       
       if (error instanceof OpenReviewError) {
+        ztoolkit.log('[DEBUG] 显示OpenReviewError错误');
         ErrorHandler.showUserError(error, "提取OpenReview评论");
       } else {
-        console.error('提取OpenReview评论时出错:', error);
+        ztoolkit.log('[DEBUG] 显示通用错误:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         this.showMessage(`提取失败: ${errorMessage}`, "error");
       }
@@ -252,41 +295,125 @@ export class OpenReviewUIFactory {
    * 将评论保存为笔记
    */
   static async saveReviewsAsNote(item: Zotero.Item, htmlReport: string, paper: any) {
-    // 创建新笔记
-    const note = new Zotero.Item('note');
-    note.parentID = item.id;
-    
-    // 直接使用生成的HTML报告
-    note.setNote(htmlReport);
-    
-    await note.saveTx();
-    
-    // 可选：也可以创建为附件
-    // await this.saveReviewsAsAttachment(item, htmlReport, paper);
+    try {
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - 开始保存笔记');
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - 条目ID:', item.id);
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - HTML报告长度:', htmlReport.length);
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - 论文ID:', paper.id);
+      
+      // 验证输入参数
+      if (!item || !item.id) {
+        throw new Error('无效的Zotero条目');
+      }
+      
+      if (!htmlReport || htmlReport.trim().length === 0) {
+        throw new Error('HTML报告为空');
+      }
+      
+      // 创建新笔记
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - 创建新笔记对象');
+      const note = new Zotero.Item('note');
+      
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - 设置父条目ID');
+      note.parentID = item.id;
+      
+      // 直接使用生成的HTML报告
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - 设置笔记内容');
+      note.setNote(htmlReport);
+      
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - 开始保存笔记到数据库');
+      await note.saveTx();
+      
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - 笔记保存成功，笔记ID:', note.id);
+      
+      // 验证笔记是否真的被保存
+      const savedNote = Zotero.Items.get(note.id);
+      if (!savedNote) {
+        throw new Error('笔记保存失败：无法从数据库中检索保存的笔记');
+      }
+      
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - 笔记验证成功');
+      
+    } catch (error) {
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - 保存笔记时出错:', error);
+      ztoolkit.log('[DEBUG] saveReviewsAsNote - 错误堆栈:', error instanceof Error ? error.stack : 'No stack trace');
+      throw new Error(`保存笔记失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
    * 将评论保存为附件（可选功能）
    */
   static async saveReviewsAsAttachment(item: Zotero.Item, formattedText: string, paper: any) {
-    const filename = `OpenReview_Reviews_${paper.id}.txt`;
-    const tempFile = Zotero.getTempDirectory();
-    tempFile.append(filename);
-    
-    // 写入文件
-    await Zotero.File.putContentsAsync(tempFile, formattedText);
-    
-    // 创建附件
-    const attachment = await Zotero.Attachments.importFromFile({
-      file: tempFile,
-      parentItemID: item.id,
-      title: `OpenReview Reviews - ${paper.title}`,
-    });
-    
-    // 清理临时文件
-    tempFile.remove(false);
-    
-    return attachment;
+    try {
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 开始保存附件');
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 条目ID:', item.id);
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 文本长度:', formattedText.length);
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 论文ID:', paper.id);
+      
+      // 验证输入参数
+      if (!item || !item.id) {
+        throw new Error('无效的Zotero条目');
+      }
+      
+      if (!formattedText || formattedText.trim().length === 0) {
+        throw new Error('格式化文本为空');
+      }
+      
+      if (!paper || !paper.id) {
+        throw new Error('无效的论文数据');
+      }
+      
+      const filename = `OpenReview_Reviews_${paper.id}.txt`;
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 文件名:', filename);
+      
+      const tempFile = Zotero.getTempDirectory();
+      tempFile.append(filename);
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 临时文件路径:', tempFile.path);
+      
+      // 写入文件
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 写入临时文件');
+      await Zotero.File.putContentsAsync(tempFile, formattedText);
+      
+      // 验证文件是否存在
+      if (!tempFile.exists()) {
+        throw new Error('临时文件创建失败');
+      }
+      
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 临时文件创建成功，大小:', tempFile.fileSize);
+      
+      // 创建附件
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 创建Zotero附件');
+      const attachment = await Zotero.Attachments.importFromFile({
+        file: tempFile,
+        parentItemID: item.id,
+        title: `OpenReview Reviews - ${paper.title}`,
+      });
+      
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 附件创建成功，附件ID:', attachment.id);
+      
+      // 清理临时文件
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 清理临时文件');
+      if (tempFile.exists()) {
+        tempFile.remove(false);
+        ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 临时文件已删除');
+      }
+      
+      // 验证附件是否真的被保存
+      const savedAttachment = Zotero.Items.get(attachment.id);
+      if (!savedAttachment) {
+        throw new Error('附件保存失败：无法从数据库中检索保存的附件');
+      }
+      
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 附件验证成功');
+      
+      return attachment;
+      
+    } catch (error) {
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 保存附件时出错:', error);
+      ztoolkit.log('[DEBUG] saveReviewsAsAttachment - 错误堆栈:', error instanceof Error ? error.stack : 'No stack trace');
+      throw new Error(`保存附件失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -343,117 +470,265 @@ export class OpenReviewUIFactory {
       },
     };
 
-    const dialogHelper = new ztoolkit.Dialog(8, 2)
+    const dialogHelper = new ztoolkit.Dialog(7, 1)
       .addCell(0, 0, {
-        tag: "h1",
-        properties: { innerHTML: "OpenReview 评论提取器" },
+        tag: "div",
+        styles: {
+          textAlign: "center",
+          marginBottom: "12px",
+          borderBottom: "2px solid #e0e0e0",
+          paddingBottom: "10px",
+        },
+        children: [
+          {
+            tag: "h1",
+            styles: {
+              margin: "0 0 8px 0",
+              fontSize: "24px",
+              fontWeight: "bold",
+              color: "#333",
+            },
+            properties: { innerHTML: "OpenReview 评论提取器" },
+          },
+          {
+            tag: "h2",
+            styles: {
+              margin: "0",
+              fontSize: "16px",
+              fontWeight: "normal",
+              color: "#666",
+            },
+            properties: { innerHTML: "功能演示" },
+          },
+        ],
       })
       .addCell(1, 0, {
-        tag: "h2",
-        properties: { innerHTML: "功能演示" },
+        tag: "div",
+        styles: {
+          padding: "8px 0",
+          lineHeight: "1.4",
+        },
+        children: [
+          {
+            tag: "p",
+            styles: {
+              margin: "0 0 8px 0",
+              fontSize: "14px",
+              color: "#444",
+            },
+            properties: {
+              innerHTML: "此插件可以从OpenReview网站提取论文的评论和评分信息，并将其保存到Zotero中。",
+            },
+          },
+        ],
       })
       .addCell(2, 0, {
-        tag: "p",
-        properties: {
-          innerHTML: "此插件可以从OpenReview网站提取论文的评论和评分信息，并将其保存到Zotero中。",
-        },
+        tag: "div",
         styles: {
-          width: "400px",
-          marginBottom: "10px",
+          padding: "6px 0",
+          marginBottom: "8px",
         },
+        children: [
+          {
+            tag: "label",
+            namespace: "html",
+            attributes: {
+              for: "openreview-url-input",
+            },
+            styles: {
+              display: "block",
+              marginBottom: "8px",
+              fontSize: "14px",
+              fontWeight: "500",
+              color: "#333",
+            },
+            properties: { innerHTML: "OpenReview URL:" },
+          },
+          {
+            tag: "input",
+            namespace: "html",
+            id: "openreview-url-input",
+            attributes: {
+              "data-bind": "inputValue",
+              "data-prop": "value",
+              type: "text",
+              placeholder: "输入OpenReview论文URL",
+            },
+            styles: {
+              width: "100%",
+              padding: "8px 12px",
+              border: "1px solid #ddd",
+              borderRadius: "4px",
+              fontSize: "14px",
+              boxSizing: "border-box",
+            },
+          },
+        ],
       })
       .addCell(3, 0, {
-        tag: "label",
-        namespace: "html",
-        attributes: {
-          for: "openreview-url-input",
+        tag: "div",
+        styles: {
+          padding: "8px 12px",
+          backgroundColor: "#f8f9fa",
+          borderRadius: "6px",
+          marginBottom: "8px",
+          border: "1px solid #e9ecef",
         },
-        properties: { innerHTML: "OpenReview URL:" },
+        children: [
+          {
+            tag: "p",
+            styles: {
+              margin: "0 0 8px 0",
+              fontSize: "13px",
+              fontWeight: "500",
+              color: "#495057",
+            },
+            properties: { innerHTML: "支持的URL格式：" },
+          },
+          {
+            tag: "ul",
+            styles: {
+              margin: "0",
+              paddingLeft: "20px",
+              fontSize: "12px",
+              color: "#6c757d",
+              lineHeight: "1.5",
+            },
+            children: [
+              {
+                tag: "li",
+                styles: { marginBottom: "4px" },
+                properties: { innerHTML: "https://openreview.net/forum?id=PAPER_ID" },
+              },
+              {
+                tag: "li",
+                properties: { innerHTML: "https://openreview.net/pdf?id=PAPER_ID" },
+              },
+            ],
+          },
+        ],
       })
-      .addCell(
-        3,
-        1,
-        {
-          tag: "input",
-          namespace: "html",
-          id: "openreview-url-input",
-          attributes: {
-            "data-bind": "inputValue",
-            "data-prop": "value",
-            type: "text",
-            placeholder: "输入OpenReview论文URL",
-          },
-          styles: {
-            width: "300px",
-          },
-        },
-        false,
-      )
       .addCell(4, 0, {
-        tag: "p",
-        properties: {
-          innerHTML: "支持的URL格式：<br/>• https://openreview.net/forum?id=PAPER_ID<br/>• https://openreview.net/pdf?id=PAPER_ID",
-        },
+        tag: "div",
         styles: {
-          fontSize: "12px",
-          color: "#666",
-          marginTop: "10px",
+          textAlign: "center",
+          padding: "15px 0",
         },
-      })
-      .addCell(
-        5,
-        0,
-        {
-          tag: "button",
-          namespace: "html",
-          attributes: {
-            type: "button",
+        children: [
+          {
+            tag: "button",
+            namespace: "html",
+            attributes: {
+              type: "button",
+            },
+            styles: {
+              padding: "8px 20px",
+              backgroundColor: "#f8f9fa",
+              color: "#000000",
+              border: "1px solid #dee2e6",
+              borderRadius: "6px",
+              fontSize: "14px",
+              fontWeight: "500",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+              textShadow: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              lineHeight: "1",
+              minHeight: "36px",
+            },
+            listeners: [
+              {
+                type: "click",
+                listener: async (e: Event) => {
+                  const url = dialogData.inputValue;
+                  if (url && url.includes('openreview.net')) {
+                    this.showMessage("开始提取评论...", "default");
+                    // 这里可以调用实际的提取功能
+                    // await this.handleExtractReviews();
+                    this.showMessage("这是演示模式。在实际使用中，请选择一个Zotero条目并使用右键菜单或工具栏按钮。", "warning");
+                  } else {
+                    this.showMessage("请输入有效的OpenReview URL", "error");
+                  }
+                },
+              },
+              {
+                type: "mouseenter",
+                listener: (e: Event) => {
+                  const target = e.target as HTMLElement;
+                  target.style.backgroundColor = "#e9ecef";
+                  target.style.borderColor = "#adb5bd";
+                  target.style.transform = "translateY(-1px)";
+                  target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
+                },
+              },
+              {
+                type: "mouseleave",
+                listener: (e: Event) => {
+                  const target = e.target as HTMLElement;
+                  target.style.backgroundColor = "#f8f9fa";
+                  target.style.borderColor = "#dee2e6";
+                  target.style.transform = "translateY(0)";
+                  target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+                },
+              },
+            ],
+            properties: {
+              innerHTML: "使用方法",
+            },
           },
-          listeners: [
-            {
-              type: "click",
-              listener: async (e: Event) => {
-                const url = dialogData.inputValue;
-                if (url && url.includes('openreview.net')) {
-                  this.showMessage("开始提取评论...", "default");
-                  // 这里可以调用实际的提取功能
-                  // await this.handleExtractReviews();
-                  this.showMessage("这是演示模式。在实际使用中，请选择一个Zotero条目并使用右键菜单或工具栏按钮。", "warning");
-                } else {
-                  this.showMessage("请输入有效的OpenReview URL", "error");
-                }
-              },
-            },
-          ],
-          children: [
-            {
-              tag: "div",
-              styles: {
-                padding: "5px 15px",
-                backgroundColor: "#007acc",
-                color: "white",
-                borderRadius: "3px",
-              },
-              properties: {
-                innerHTML: "演示提取功能",
-              },
-            },
-          ],
-        },
-        false,
-      )
-      .addCell(6, 0, {
-        tag: "p",
-        properties: {
-          innerHTML: "<strong>使用说明：</strong><br/>1. 在Zotero中选择一个条目<br/>2. 右键选择'提取OpenReview评论'<br/>3. 或使用工具栏的OpenReview按钮",
-        },
+        ],
+      })
+      .addCell(5, 0, {
+        tag: "div",
         styles: {
-          fontSize: "12px",
-          marginTop: "15px",
-          padding: "10px",
-          backgroundColor: "#f5f5f5",
-          borderRadius: "3px",
+          padding: "12px",
+          backgroundColor: "#e8f4fd",
+          borderRadius: "6px",
+          marginTop: "12px",
+          border: "1px solid #bee5eb",
         },
+        children: [
+          {
+            tag: "h4",
+            styles: {
+              margin: "0 0 8px 0",
+              fontSize: "14px",
+              fontWeight: "600",
+              color: "#0c5460",
+            },
+            properties: { innerHTML: "使用说明" },
+          },
+          {
+            tag: "ol",
+            styles: {
+              margin: "0 0 4px 0",
+              paddingLeft: "20px",
+              fontSize: "13px",
+              color: "#0c5460",
+              lineHeight: "1.4",
+            },
+            children: [
+              {
+                tag: "li",
+                styles: { marginBottom: "6px" },
+                properties: { innerHTML: "在Zotero中选择一个条目" },
+              },
+              {
+                tag: "li",
+                styles: { marginBottom: "6px" },
+                properties: { innerHTML: "右键选择'提取OpenReview评论'" },
+              },
+              {
+                tag: "li",
+                properties: { innerHTML: "或使用工具栏的OpenReview按钮" },
+              },
+            ],
+          },
+        ],
       })
       .addButton("开始使用", "confirm", {
         callback: (e) => {
@@ -468,7 +743,12 @@ export class OpenReviewUIFactory {
         },
       })
       .setDialogData(dialogData)
-      .open("OpenReview 功能演示");
+      .open("OpenReview 功能演示", {
+        width: 500,
+        height: 600,
+        centerscreen: true,
+        resizable: false,
+      });
 
     addon.data.dialog = dialogHelper;
     await dialogData.unloadLock.promise;
