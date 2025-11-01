@@ -70,8 +70,6 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
   });
 
   // Register UI components that require window context
-  UIExampleFactory.registerStyleSheet(win);
-  
   UIExampleFactory.registerWindowMenuWithSeparator();
 
   // Register OpenReview UI components

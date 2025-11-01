@@ -133,7 +133,7 @@ export class UIExampleFactory {
       },
     });
     doc.documentElement?.appendChild(styles);
-    doc.getElementById("zotero-item-pane-content")?.classList.add("makeItRed");
+    // Note: This example function is no longer called in the main plugin
   }
 
   @example
