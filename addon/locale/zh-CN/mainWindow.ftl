@@ -34,8 +34,8 @@ openreview-toolbar-button-tooltip = 提取选中条目的OpenReview评论
 openreview-context-select-items-warning = 请先选择一个或多个条目
 openreview-progress-single-processing = 正在处理单个条目...
 openreview-progress-batch-processing = 正在批量处理 { $count } 个条目...
-openreview-final-success-single = 处理完成！
-openreview-final-summary = 处理完成！(总计: { $total }, 成功: { $success }, 失败: { $failure })
+openreview-final-success-single = 处理结束！
+openreview-final-summary = 总计: { $total }, 成功: { $success }, 失败: { $failure }
 openreview-batch-failed = 批量处理失败: { $message }
 
 # 批处理阶段文案
@@ -50,7 +50,7 @@ openreview-stage-completed = 处理完成
 openreview-stage-failed = 处理失败
 
 # 批量处理结果摘要
-openreview-batch-result-title = 批量处理完成！
+openreview-batch-result-title = 批量处理完成
 openreview-batch-result-total = 总条目数
 openreview-batch-result-success = 成功处理
 openreview-batch-result-failure = 处理失败

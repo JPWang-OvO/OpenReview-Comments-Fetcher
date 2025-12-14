@@ -4,7 +4,13 @@
  * 遵循Zotero笔记模板规范，使用基本HTML格式
  */
 
-import { OpenReviewPaper, OpenReviewReview, OpenReviewComment, OpenReviewNote } from './openreview';
+import {
+  OpenReviewPaper,
+  OpenReviewReview,
+  OpenReviewComment,
+  OpenReviewNote,
+} from "./openreview";
+import { getString } from "../utils/locale";
 
 export interface ProcessedReview {
   id: string;
@@ -81,9 +87,16 @@ export class DataProcessor {
   /**
    * 处理原始论文数据
    */
-  static processPaper(rawPaper: OpenReviewPaper, allNotes?: OpenReviewNote[]): ProcessedPaper {
-    const processedReviews = rawPaper.reviews.map(review => this.processReview(review));
-    const processedComments = rawPaper.comments.map(comment => this.processComment(comment));
+  static processPaper(
+    rawPaper: OpenReviewPaper,
+    allNotes?: OpenReviewNote[],
+  ): ProcessedPaper {
+    const processedReviews = rawPaper.reviews.map((review) =>
+      this.processReview(review),
+    );
+    const processedComments = rawPaper.comments.map((comment) =>
+      this.processComment(comment),
+    );
     const statistics = this.calculateStatistics(processedReviews);
 
     // 构建对话树（如果提供了所有note）
@@ -102,7 +115,7 @@ export class DataProcessor {
       allNotes: allNotes,
       conversationTree,
       statistics,
-      extractedAt: new Date()
+      extractedAt: new Date(),
     };
   }
 
@@ -117,7 +130,7 @@ export class DataProcessor {
       strengths: rawReview.strengths,
       weaknesses: rawReview.weaknesses,
       questions: rawReview.questions,
-      rawData: rawReview
+      rawData: rawReview,
     };
 
     // 处理评分
@@ -134,7 +147,7 @@ export class DataProcessor {
     processed.technicalQuality = {
       soundness: rawReview.soundness,
       presentation: rawReview.presentation,
-      contribution: rawReview.contribution
+      contribution: rawReview.contribution,
     };
 
     return processed;
@@ -148,7 +161,7 @@ export class DataProcessor {
       id: rawComment.id,
       author: rawComment.author,
       content: rawComment.content,
-      rawData: rawComment
+      rawData: rawComment,
     };
   }
 
@@ -161,31 +174,34 @@ export class DataProcessor {
       totalComments: 0,
       ratingDistribution: {} as { [rating: string]: number },
       averageRating: undefined as number | undefined,
-      averageConfidence: undefined as number | undefined
+      averageConfidence: undefined as number | undefined,
     };
 
     const ratings = reviews
-      .map(r => r.rating)
-      .filter(r => r !== undefined) as number[];
+      .map((r) => r.rating)
+      .filter((r) => r !== undefined) as number[];
 
     const confidences = reviews
-      .map(r => r.confidence)
-      .filter(c => c !== undefined) as number[];
+      .map((r) => r.confidence)
+      .filter((c) => c !== undefined) as number[];
 
     // 计算平均评分
     if (ratings.length > 0) {
-      statistics.averageRating = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+      statistics.averageRating =
+        ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
     }
 
     // 计算平均置信度
     if (confidences.length > 0) {
-      statistics.averageConfidence = confidences.reduce((sum, conf) => sum + conf, 0) / confidences.length;
+      statistics.averageConfidence =
+        confidences.reduce((sum, conf) => sum + conf, 0) / confidences.length;
     }
 
     // 计算评分分布
-    ratings.forEach(rating => {
+    ratings.forEach((rating) => {
       const ratingStr = rating.toString();
-      statistics.ratingDistribution[ratingStr] = (statistics.ratingDistribution[ratingStr] || 0) + 1;
+      statistics.ratingDistribution[ratingStr] =
+        (statistics.ratingDistribution[ratingStr] || 0) + 1;
     });
 
     return statistics;
@@ -196,7 +212,7 @@ export class DataProcessor {
    */
   static buildConversationTree(notes: OpenReviewNote[]): ConversationTree {
     if (!notes || notes.length === 0) {
-      throw new Error('No notes provided');
+      throw new Error("No notes provided");
     }
 
     // 构建回复映射：replyto -> [notes]
@@ -217,13 +233,13 @@ export class DataProcessor {
     }
 
     // 找到主论文作为根节点
-    const rootNote = rootNotes.find(note => {
+    const rootNote = rootNotes.find((note) => {
       const noteType = this.getNoteType(note);
-      return noteType === 'Paper';
+      return noteType === "Paper";
     });
 
     if (!rootNote) {
-      throw new Error('No root paper found');
+      throw new Error("No root paper found");
     }
 
     // 创建根节点
@@ -235,7 +251,7 @@ export class DataProcessor {
       creationTime: new Date(rootNote.cdate || 0),
       signatures: rootNote.signatures || [],
       contentSummary: this.getContentSummary(rootNote),
-      icon: this.getNoteTypeIcon('Paper')
+      icon: this.getNoteTypeIcon("Paper"),
     };
 
     const allNodes: ConversationTreeNode[] = [rootNode];
@@ -252,7 +268,7 @@ export class DataProcessor {
     return {
       rootNode,
       allNodes,
-      statistics
+      statistics,
     };
   }
 
@@ -262,7 +278,7 @@ export class DataProcessor {
   private static buildChildNodes(
     parentNode: ConversationTreeNode,
     replyMap: Map<string, OpenReviewNote[]>,
-    allNodes: ConversationTreeNode[]
+    allNodes: ConversationTreeNode[],
   ): void {
     const replies = replyMap.get(parentNode.note.id);
     if (!replies || replies.length === 0) {
@@ -279,7 +295,7 @@ export class DataProcessor {
         creationTime: new Date(reply.cdate || 0),
         signatures: reply.signatures || [],
         contentSummary: this.getContentSummary(reply),
-        icon: this.getNoteTypeIcon(noteType)
+        icon: this.getNoteTypeIcon(noteType),
       };
 
       parentNode.children.push(childNode);
@@ -295,44 +311,48 @@ export class DataProcessor {
    */
   static getNoteType(note: OpenReviewNote): string {
     const content = note.content || {};
-    const invitation = note.invitation?.toLowerCase() || '';
+    const invitation = note.invitation?.toLowerCase() || "";
     const contentKeys = Object.keys(content);
 
     // 检查decision
-    if (content.decision || invitation.includes('decision')) {
-      return 'Decision';
+    if (content.decision || invitation.includes("decision")) {
+      return "Decision";
     }
 
     // 检查meta review
-    if (content.metareview || invitation.includes('meta') || invitation.includes('area')) {
-      return 'Meta Review';
+    if (
+      content.metareview ||
+      invitation.includes("meta") ||
+      invitation.includes("area")
+    ) {
+      return "Meta Review";
     }
 
     // 检查official review - 按照Python脚本逻辑
-    if (contentKeys.includes('review') || contentKeys.includes('rating')) {
-      return 'Official Review';
+    if (contentKeys.includes("review") || contentKeys.includes("rating")) {
+      return "Official Review";
     }
 
     // 检查author response - 按照Python脚本逻辑 (必须在Paper检查之前)
-    if (contentKeys.includes('title') && contentKeys.includes('comment')) {
-      const title = content.title?.value?.toString().toLowerCase() || '';
-      if (title.includes('author') || title.includes('response')) {
-        return 'Author Response';
+    if (contentKeys.includes("title") && contentKeys.includes("comment")) {
+      const title = content.title?.value?.toString().toLowerCase() || "";
+      if (title.includes("author") || title.includes("response")) {
+        return "Author Response";
       }
-      return 'Comment';
+      return "Comment";
     }
 
     // 检查title字段判断是否为论文 (放在Author Response检查之后)
     if (content.title && content.title.value) {
-      return 'Paper';
+      return "Paper";
     }
 
     // 检查comment
-    if (contentKeys.includes('comment')) {
-      return 'Comment';
+    if (contentKeys.includes("comment")) {
+      return "Comment";
     }
 
-    return 'Other';
+    return "Other";
   }
 
   /**
@@ -340,15 +360,28 @@ export class DataProcessor {
    */
   static getNoteTypeIcon(noteType: string): string {
     const iconMap: { [key: string]: string } = {
-      'Paper': '📄',
-      'Decision': '🏆',
-      'Meta Review': '📝',
-      'Official Review': '⭐',
-      'Author Response': '💬',
-      'Comment': '🔄',
-      'Reply': '↳'
+      Paper: "📄",
+      Decision: "🏆",
+      "Meta Review": "📝",
+      "Official Review": "⭐",
+      "Author Response": "💬",
+      Comment: "🔄",
+      Reply: "↳",
     };
-    return iconMap[noteType] || '📌';
+    return iconMap[noteType] || "📌";
+  }
+
+  private static localizeNoteType(noteType: string): string {
+    const map: { [key: string]: string } = {
+      Paper: getString("openreview-note-type-paper"),
+      Decision: getString("openreview-note-type-decision"),
+      "Meta Review": getString("openreview-note-type-meta-review"),
+      "Official Review": getString("openreview-note-type-official-review"),
+      "Author Response": getString("openreview-note-type-author-response"),
+      Comment: getString("openreview-note-type-comment"),
+      Reply: getString("openreview-note-type-reply"),
+    };
+    return map[noteType] || noteType;
   }
 
   /**
@@ -361,7 +394,7 @@ export class DataProcessor {
     if (content.title && content.title.value) {
       return content.title.value.toString();
     }
-    return '-';
+    return "-";
     // 对于其他类型，尝试获取主要内容
     /*
     const possibleFields = ['comment', 'review', 'decision', 'metareview', 'summary'];
@@ -393,7 +426,7 @@ export class DataProcessor {
     }
 
     // 递归排序子节点
-    node.children.forEach(child => this.sortTreeNodesRecursively(child));
+    node.children.forEach((child) => this.sortTreeNodesRecursively(child));
   }
 
   /**
@@ -401,18 +434,22 @@ export class DataProcessor {
    */
   private static sortFirstLevelNodes(nodes: ConversationTreeNode[]): void {
     // Decision和Meta Review优先，然后所有其他类型按时间从新到旧排序
-    const decisionAndMeta = nodes.filter(node =>
-      node.noteType === 'Decision' || node.noteType === 'Meta Review'
+    const decisionAndMeta = nodes.filter(
+      (node) => node.noteType === "Decision" || node.noteType === "Meta Review",
     );
-    const otherNodes = nodes.filter(node =>
-      node.noteType !== 'Decision' && node.noteType !== 'Meta Review'
+    const otherNodes = nodes.filter(
+      (node) => node.noteType !== "Decision" && node.noteType !== "Meta Review",
     );
 
     // Decision和Meta Review按时间从新到旧排序
-    decisionAndMeta.sort((a, b) => b.creationTime.getTime() - a.creationTime.getTime());
+    decisionAndMeta.sort(
+      (a, b) => b.creationTime.getTime() - a.creationTime.getTime(),
+    );
 
     // 其他所有类型（包括Official Review）按时间从新到旧排序
-    otherNodes.sort((a, b) => b.creationTime.getTime() - a.creationTime.getTime());
+    otherNodes.sort(
+      (a, b) => b.creationTime.getTime() - a.creationTime.getTime(),
+    );
 
     // 清空原数组并重新填充
     nodes.length = 0;
@@ -429,25 +466,25 @@ export class DataProcessor {
       commentCount: 0,
       authorResponseCount: 0,
       decisionCount: 0,
-      metaReviewCount: 0
+      metaReviewCount: 0,
     };
 
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       switch (node.noteType) {
-        case 'Official Review':
+        case "Official Review":
           statistics.reviewCount++;
           break;
-        case 'Comment':
-        case 'Reply':
+        case "Comment":
+        case "Reply":
           statistics.commentCount++;
           break;
-        case 'Author Response':
+        case "Author Response":
           statistics.authorResponseCount++;
           break;
-        case 'Decision':
+        case "Decision":
           statistics.decisionCount++;
           break;
-        case 'Meta Review':
+        case "Meta Review":
           statistics.metaReviewCount++;
           break;
       }
@@ -464,7 +501,7 @@ export class DataProcessor {
       return undefined;
     }
 
-    if (typeof ratingStr === 'number') {
+    if (typeof ratingStr === "number") {
       return ratingStr;
     }
 
@@ -486,7 +523,7 @@ export class DataProcessor {
       return undefined;
     }
 
-    if (typeof confidenceStr === 'number') {
+    if (typeof confidenceStr === "number") {
       return confidenceStr;
     }
 
@@ -505,19 +542,19 @@ export class DataProcessor {
    */
   private static escapeHtml(text: string): string {
     return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   /**
    * 安全地获取字符串值
    */
   private static safeString(value: any): string {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'object' && value.value !== undefined) {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "object" && value.value !== undefined) {
       return String(value.value);
     }
     return String(value);
@@ -527,13 +564,13 @@ export class DataProcessor {
    * 规范化文本，处理不必要的换行符
    */
   private static normalizeText(text: string): string {
-    if (!text) return '';
-    
+    if (!text) return "";
+
     // 将单个换行符替换为空格，保留双换行符作为段落分隔
     return text
-      .replace(/\n(?!\s*\n)/g, ' ')  // 单个换行符替换为空格
-      .replace(/\s+/g, ' ')          // 多个连续空格替换为单个空格
-      .trim();                       // 去除首尾空格
+      .replace(/\n(?!\s*\n)/g, " ") // 单个换行符替换为空格
+      .replace(/\s+/g, " ") // 多个连续空格替换为单个空格
+      .trim(); // 去除首尾空格
   }
 
   /**
@@ -548,39 +585,44 @@ export class DataProcessor {
     }
 
     const tree = paper.conversationTree;
-    let html = '';
+    let html = "";
 
     // 论文标题
     html += `<h1>${this.escapeHtml(paper.title)}</h1>`;
 
     // 论文基本信息
-    html += `<h2>📋 论文信息</h2>`;
-    html += `<p><strong>作者:</strong> ${this.escapeHtml(paper.authors.join(', '))}</p>`;
-    
+    html += `<h2>📋 ${getString("openreview-report-section-paper-info")}</h2>`;
+    html += `<p><strong>${getString("openreview-report-field-authors")}:</strong> ${this.escapeHtml(paper.authors.join(", "))}</p>`;
+
     // 添加Paper的创建时间
-    if (tree.rootNode && tree.rootNode.noteType === 'Paper') {
-      const paperTimeStr = tree.rootNode.creationTime.toLocaleDateString('zh-CN') + ' ' +
-        tree.rootNode.creationTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-      html += `<p><strong>创建时间:</strong> ${paperTimeStr}</p>`;
+    if (tree.rootNode && tree.rootNode.noteType === "Paper") {
+      const paperTimeStr =
+        tree.rootNode.creationTime.toLocaleDateString("zh-CN") +
+        " " +
+        tree.rootNode.creationTime.toLocaleTimeString("zh-CN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      html += `<p><strong>${getString("openreview-report-field-created-at")}:</strong> ${paperTimeStr}</p>`;
     }
-    
-    html += `<p><strong>提取时间:</strong> ${paper.extractedAt.toLocaleString('zh-CN')}</p>`;
+
+    html += `<p><strong>${getString("openreview-report-field-extracted-at")}:</strong> ${paper.extractedAt.toLocaleString("zh-CN")}</p>`;
 
     if (paper.abstract) {
-      html += `<p><strong>摘要:</strong> ${this.escapeHtml(paper.abstract)}</p>`;
+      html += `<p><strong>${getString("openreview-report-field-abstract")}:</strong> ${this.escapeHtml(paper.abstract)}</p>`;
     }
 
     // 统计信息
-    html += `<h2>📊 统计信息</h2>`;
-    html += `<p><strong>总评论数:</strong> ${tree.statistics.totalNotes}</p>`;
-    html += `<p><strong>作者回复数:</strong> ${tree.statistics.authorResponseCount}</p>`;
-    html += `<p><strong>其他评论数:</strong> ${tree.statistics.commentCount}</p>`;
+    html += `<h2>📊 ${getString("openreview-report-section-statistics")}</h2>`;
+    html += `<p><strong>${getString("openreview-report-field-total-notes")}:</strong> ${tree.statistics.totalNotes}</p>`;
+    html += `<p><strong>${getString("openreview-report-field-author-response-count")}:</strong> ${tree.statistics.authorResponseCount}</p>`;
+    html += `<p><strong>${getString("openreview-report-field-other-comment-count")}:</strong> ${tree.statistics.commentCount}</p>`;
 
     if (paper.statistics.averageRating) {
-      html += `<p><strong>平均评分:</strong> ${paper.statistics.averageRating.toFixed(1)}</p>`;
+      html += `<p><strong>${getString("openreview-report-field-average-rating")}:</strong> ${paper.statistics.averageRating.toFixed(1)}</p>`;
     }
     if (paper.statistics.averageConfidence) {
-      html += `<p><strong>平均置信度:</strong> ${paper.statistics.averageConfidence.toFixed(1)}</p>`;
+      html += `<p><strong>${getString("openreview-report-field-average-confidence")}:</strong> ${paper.statistics.averageConfidence.toFixed(1)}</p>`;
     }
 
     // review 对话树 - 跳过Paper根节点，直接处理其子节点
@@ -597,46 +639,58 @@ export class DataProcessor {
    * 递归生成节点HTML
    */
   private static generateNodeHTML(node: ConversationTreeNode): string {
-    let html = '';
+    let html = "";
 
     // 根据层级确定缩进和前缀 - 由于跳过了Paper根节点，所有级别减1
     const adjustedLevel = Math.max(0, node.level - 1);
-    const indent = '&nbsp;&nbsp;'.repeat(adjustedLevel);
-    const prefix = adjustedLevel > 0 ? '↳ ' : '';
+    const indent = "&nbsp;&nbsp;".repeat(adjustedLevel);
+    const prefix = adjustedLevel > 0 ? "↳ " : "";
 
     // 格式化时间
-    const timeStr = node.creationTime.toLocaleDateString('zh-CN') + ' ' +
-      node.creationTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const timeStr =
+      node.creationTime.toLocaleDateString("zh-CN") +
+      " " +
+      node.creationTime.toLocaleTimeString("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
     // 格式化签名
-    const signatures = node.signatures.length > 0 ?
-      ` by ${node.signatures.join(', ')}` : '';
+    const signatures =
+      node.signatures.length > 0
+        ? ` ${getString("openreview-report-by")} ${node.signatures.join(", ")}`
+        : "";
 
     // 生成节点标题
-    if (node.noteType === 'Paper') {
-      html += `<p><strong>${node.icon} [${this.escapeHtml(node.noteType)}] ${this.escapeHtml(node.contentSummary)}</strong></p>`;
-      html += `<p><strong>创建时间:</strong> ${timeStr}</p>`;
+    if (node.noteType === "Paper") {
+      html += `<p><strong>${node.icon} [${this.escapeHtml(DataProcessor.localizeNoteType(node.noteType))}] ${this.escapeHtml(node.contentSummary)}</strong></p>`;
+      html += `<p><strong>${getString("openreview-report-field-created-at")}:</strong> ${timeStr}</p>`;
     } else {
-      const shortSummary = node.contentSummary.length > 100 ?
-        node.contentSummary.substring(0, 100) + '...' : node.contentSummary;
+      const shortSummary =
+        node.contentSummary.length > 100
+          ? node.contentSummary.substring(0, 100) + "..."
+          : node.contentSummary;
 
-      html += `<p>${indent}${prefix}<strong>${node.icon} [${this.escapeHtml(node.noteType)}]${this.escapeHtml(signatures)}</strong></p>`;
+      html += `<p>${indent}${prefix}<strong>${node.icon} [${this.escapeHtml(DataProcessor.localizeNoteType(node.noteType))}]${this.escapeHtml(signatures)}</strong></p>`;
       if (shortSummary) {
-        html += `<p>${indent}&nbsp;&nbsp;<strong>内容:</strong> ${this.escapeHtml(shortSummary)}</p>`;
+        html += `<p>${indent}&nbsp;&nbsp;<strong>${getString("openreview-report-field-content")}:</strong> ${this.escapeHtml(shortSummary)}</p>`;
       }
-      html += `<p>${indent}&nbsp;&nbsp;<strong>创建时间:</strong> ${timeStr}</p>`;
+      html += `<p>${indent}&nbsp;&nbsp;<strong>${getString("openreview-report-field-created-at")}:</strong> ${timeStr}</p>`;
 
       // 添加详细内容
       const content = this.extractNoteContent(node.note);
       if (content && Object.keys(content).length > 0) {
         const formattedContent = this.formatContentAsHTML(content);
         // 为内容添加缩进
-        const indentedContent = formattedContent.replace(/<p>/g, `<p>${indent}&nbsp;&nbsp;&nbsp;&nbsp;`);
+        const indentedContent = formattedContent.replace(
+          /<p>/g,
+          `<p>${indent}&nbsp;&nbsp;&nbsp;&nbsp;`,
+        );
         html += indentedContent;
       }
     }
 
-    html += '<br>';
+    html += "<br>";
 
     // 递归处理子节点
     for (const child of node.children) {
@@ -649,22 +703,24 @@ export class DataProcessor {
   /**
    * 提取笔记内容
    */
-  private static extractNoteContent(note: OpenReviewNote): { [key: string]: string } {
+  private static extractNoteContent(note: OpenReviewNote): {
+    [key: string]: string;
+  } {
     const content = note.content || {};
     const result: { [key: string]: string } = {};
 
     // 定义要提取的字段及其显示名称
     const fieldMap: { [key: string]: string } = {
-      'review': '评审内容',
-      'summary': '总结',
-      'strengths': '优点',
-      'weaknesses': '缺点',
-      'questions': '问题',
-      'rating': '评分',
-      'confidence': '置信度',
-      'decision': '决定',
-      'metareview': 'Meta Review',
-      'comment': '评论'
+      review: getString("openreview-report-field-review"),
+      summary: getString("openreview-report-field-summary"),
+      strengths: getString("openreview-report-field-strengths"),
+      weaknesses: getString("openreview-report-field-weaknesses"),
+      questions: getString("openreview-report-field-questions"),
+      rating: getString("openreview-report-field-rating"),
+      confidence: getString("openreview-report-field-confidence"),
+      decision: getString("openreview-report-field-decision"),
+      metareview: getString("openreview-report-field-meta-review"),
+      comment: getString("openreview-report-field-comment"),
     };
 
     for (const [field, displayName] of Object.entries(fieldMap)) {
@@ -682,8 +738,10 @@ export class DataProcessor {
   /**
    * 将内容格式化为HTML
    */
-  private static formatContentAsHTML(content: { [key: string]: string }): string {
-    let html = '';
+  private static formatContentAsHTML(content: {
+    [key: string]: string;
+  }): string {
+    let html = "";
 
     for (const [key, value] of Object.entries(content)) {
       if (value && value.length > 0) {
@@ -712,42 +770,47 @@ export class DataProcessor {
     }
 
     const tree = paper.conversationTree;
-    let markdown = '';
+    let markdown = "";
 
     // 论文标题
     markdown += `# ${paper.title}\n\n`;
 
     // 论文基本信息
-    markdown += `## 📋 论文信息\n\n`;
-    markdown += `- **作者**: ${paper.authors.join(', ')}\n`;
-    
+    markdown += `## 📋 ${getString("openreview-report-section-paper-info")}\n\n`;
+    markdown += `- **${getString("openreview-report-field-authors")}**: ${paper.authors.join(", ")}\n`;
+
     // 添加Paper的创建时间
-    if (tree.rootNode && tree.rootNode.noteType === 'Paper') {
-      const paperTimeStr = tree.rootNode.creationTime.toLocaleDateString('zh-CN') + ' ' +
-        tree.rootNode.creationTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-      markdown += `- **创建时间**: ${paperTimeStr}\n`;
+    if (tree.rootNode && tree.rootNode.noteType === "Paper") {
+      const paperTimeStr =
+        tree.rootNode.creationTime.toLocaleDateString("zh-CN") +
+        " " +
+        tree.rootNode.creationTime.toLocaleTimeString("zh-CN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      markdown += `- **${getString("openreview-report-field-created-at")}**: ${paperTimeStr}\n`;
     }
-    
-    markdown += `- **提取时间**: ${paper.extractedAt.toLocaleString('zh-CN')}\n`;
+
+    markdown += `- **${getString("openreview-report-field-extracted-at")}**: ${paper.extractedAt.toLocaleString("zh-CN")}\n`;
 
     if (paper.abstract) {
-      markdown += `- **摘要**: ${this.normalizeText(paper.abstract)}\n`;
+      markdown += `- **${getString("openreview-report-field-abstract")}**: ${this.normalizeText(paper.abstract)}\n`;
     }
-    markdown += '\n';
+    markdown += "\n";
 
     // 统计信息
-    markdown += `## 📊 统计信息\n\n`;
-    markdown += `- **总评论数**: ${tree.statistics.totalNotes}\n`;
-    markdown += `- **作者回复数**: ${tree.statistics.authorResponseCount}\n`;
-    markdown += `- **其他评论数**: ${tree.statistics.commentCount}\n`;
+    markdown += `## 📊 ${getString("openreview-report-section-statistics")}\n\n`;
+    markdown += `- **${getString("openreview-report-field-total-notes")}**: ${tree.statistics.totalNotes}\n`;
+    markdown += `- **${getString("openreview-report-field-author-response-count")}**: ${tree.statistics.authorResponseCount}\n`;
+    markdown += `- **${getString("openreview-report-field-other-comment-count")}**: ${tree.statistics.commentCount}\n`;
 
     if (paper.statistics.averageRating) {
-      markdown += `- **平均评分**: ${paper.statistics.averageRating.toFixed(1)}\n`;
+      markdown += `- **${getString("openreview-report-field-average-rating")}**: ${paper.statistics.averageRating.toFixed(1)}\n`;
     }
     if (paper.statistics.averageConfidence) {
-      markdown += `- **平均置信度**: ${paper.statistics.averageConfidence.toFixed(1)}\n`;
+      markdown += `- **${getString("openreview-report-field-average-confidence")}**: ${paper.statistics.averageConfidence.toFixed(1)}\n`;
     }
-    markdown += '\n';
+    markdown += "\n";
 
     // 对话树 - 跳过Paper根节点，直接处理其子节点
     if (tree.rootNode && tree.rootNode.children) {
@@ -763,35 +826,42 @@ export class DataProcessor {
    * 递归生成节点Markdown
    */
   private static generateNodeMarkdown(node: ConversationTreeNode): string {
-    let markdown = '';
+    let markdown = "";
 
     // 格式化时间
-    const timeStr = node.creationTime.toLocaleDateString('zh-CN') + ' ' +
-      node.creationTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const timeStr =
+      node.creationTime.toLocaleDateString("zh-CN") +
+      " " +
+      node.creationTime.toLocaleTimeString("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
     // 格式化签名
-    const signatures = node.signatures.length > 0 ?
-      ` by ${node.signatures.join(', ')}` : '';
+    const signatures =
+      node.signatures.length > 0 ? ` by ${node.signatures.join(", ")}` : "";
 
     // 根据层级确定标题级别 - 由于跳过了Paper根节点，所有级别提升一级
     // level 1 (Review等) → H2, level 2 → H3, 以此类推
     const headerLevel = Math.min(node.level + 1, 6);
-    const headerPrefix = '#'.repeat(headerLevel);
+    const headerPrefix = "#".repeat(headerLevel);
 
     // 生成节点标题
-    if (node.noteType === 'Paper') {
-      markdown += `${headerPrefix} ${node.icon} [${node.noteType}] ${node.contentSummary}\n\n`;
-      markdown += `**创建时间:** ${timeStr}\n\n`;
+    if (node.noteType === "Paper") {
+      markdown += `${headerPrefix} ${node.icon} [${DataProcessor.localizeNoteType(node.noteType)}] ${node.contentSummary}\n\n`;
+      markdown += `**${getString("openreview-report-field-created-at")}:** ${timeStr}\n\n`;
     } else {
-      const shortSummary = node.contentSummary.length > 100 ?
-        node.contentSummary.substring(0, 100) + '...' : node.contentSummary;
+      const shortSummary =
+        node.contentSummary.length > 100
+          ? node.contentSummary.substring(0, 100) + "..."
+          : node.contentSummary;
 
-      markdown += `${headerPrefix} ${node.icon} [${node.noteType}]${signatures}\n\n`;
-      
-      if (shortSummary && shortSummary !== '-') {
-        markdown += `**内容:** ${shortSummary}\n\n`;
+      markdown += `${headerPrefix} ${node.icon} [${DataProcessor.localizeNoteType(node.noteType)}]${signatures}\n\n`;
+
+      if (shortSummary && shortSummary !== "-") {
+        markdown += `**${getString("openreview-report-field-content")}:** ${shortSummary}\n\n`;
       }
-      markdown += `**创建时间:** ${timeStr}\n\n`;
+      markdown += `**${getString("openreview-report-field-created-at")}:** ${timeStr}\n\n`;
 
       // 添加详细内容
       const content = this.extractNoteContent(node.note);
@@ -812,8 +882,10 @@ export class DataProcessor {
   /**
    * 将内容格式化为Markdown
    */
-  private static formatContentAsMarkdown(content: { [key: string]: string }): string {
-    let markdown = '';
+  private static formatContentAsMarkdown(content: {
+    [key: string]: string;
+  }): string {
+    let markdown = "";
 
     for (const [key, value] of Object.entries(content)) {
       if (value && value.length > 0) {
@@ -836,55 +908,57 @@ export class DataProcessor {
    * 生成基本Markdown格式的报告（用于fallback）
    */
   private static generateBasicMarkdownReport(paper: ProcessedPaper): string {
-    let markdown = '';
+    let markdown = "";
 
     // 论文标题
     markdown += `# ${paper.title}\n\n`;
 
     // 论文信息
-    markdown += `## 📋 论文信息\n\n`;
-    markdown += `- **作者**: ${paper.authors.join(', ')}\n`;
-    markdown += `- **提取时间**: ${paper.extractedAt.toLocaleString('zh-CN')}\n`;
+    markdown += `## 📋 ${getString("openreview-report-section-paper-info")}\n\n`;
+    markdown += `- **${getString("openreview-report-field-authors")}**: ${paper.authors.join(", ")}\n`;
+    markdown += `- **${getString("openreview-report-field-extracted-at")}**: ${paper.extractedAt.toLocaleString("zh-CN")}\n`;
     if (paper.abstract) {
-      const abstractPreview = paper.abstract.length > 300 ?
-        paper.abstract.substring(0, 300) + '...' : paper.abstract;
-      markdown += `- **摘要**: ${this.normalizeText(abstractPreview)}\n`;
+      const abstractPreview =
+        paper.abstract.length > 300
+          ? paper.abstract.substring(0, 300) + "..."
+          : paper.abstract;
+      markdown += `- **${getString("openreview-report-field-abstract")}**: ${this.normalizeText(abstractPreview)}\n`;
     }
-    markdown += '\n';
+    markdown += "\n";
 
     // 统计信息
-    markdown += `## 📊 统计信息\n\n`;
-    markdown += `- **总评审数**: ${paper.statistics.totalReviews}\n`;
+    markdown += `## 📊 ${getString("openreview-report-section-statistics")}\n\n`;
+    markdown += `- **${getString("openreview-report-field-total-reviews")}**: ${paper.statistics.totalReviews}\n`;
     if (paper.statistics.averageRating) {
-      markdown += `- **平均评分**: ${paper.statistics.averageRating.toFixed(1)}\n`;
+      markdown += `- **${getString("openreview-report-field-average-rating")}**: ${paper.statistics.averageRating.toFixed(1)}\n`;
     }
     if (paper.statistics.averageConfidence) {
-      markdown += `- **平均置信度**: ${paper.statistics.averageConfidence.toFixed(1)}\n`;
+      markdown += `- **${getString("openreview-report-field-average-confidence")}**: ${paper.statistics.averageConfidence.toFixed(1)}\n`;
     }
-    markdown += '\n';
+    markdown += "\n";
 
     // 评审详情
     if (paper.reviews.length > 0) {
-      markdown += `## 📝 评审详情\n\n`;
+      markdown += `## 📝 ${getString("openreview-report-section-review-details")}\n\n`;
       paper.reviews.forEach((review, index) => {
-        markdown += `### 评审 ${index + 1}\n\n`;
-        markdown += `- **作者**: ${review.author}\n`;
+        markdown += `### ${getString("openreview-report-review-number", { args: { index: index + 1 } })}\n\n`;
+        markdown += `- **${getString("openreview-report-field-author")}**: ${review.author}\n`;
         if (review.rating) {
-          markdown += `- **评分**: ${review.rating}\n`;
+          markdown += `- **${getString("openreview-report-field-rating")}**: ${review.rating}\n`;
         }
         if (review.confidence) {
-          markdown += `- **置信度**: ${review.confidence}\n`;
+          markdown += `- **${getString("openreview-report-field-confidence")}**: ${review.confidence}\n`;
         }
         if (review.summary) {
-          markdown += `- **总结**: ${review.summary}\n`;
+          markdown += `- **${getString("openreview-report-field-summary")}**: ${review.summary}\n`;
         }
         if (review.strengths) {
-          markdown += `- **优点**: ${review.strengths}\n`;
+          markdown += `- **${getString("openreview-report-field-strengths")}**: ${review.strengths}\n`;
         }
         if (review.weaknesses) {
-          markdown += `- **缺点**: ${review.weaknesses}\n`;
+          markdown += `- **${getString("openreview-report-field-weaknesses")}**: ${review.weaknesses}\n`;
         }
-        markdown += '\n';
+        markdown += "\n";
       });
     }
 
@@ -898,18 +972,18 @@ export class DataProcessor {
     let html = markdown;
 
     // 转换标题
-    html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.*$)/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+    html = html.replace(/^### (.*$)/gm, "<h3>$1</h3>");
+    html = html.replace(/^## (.*$)/gm, "<h2>$1</h2>");
+    html = html.replace(/^# (.*$)/gm, "<h1>$1</h1>");
 
     // 转换粗体
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
 
     // 转换列表项
-    html = html.replace(/^- (.*$)/gm, '<p>• $1</p>');
+    html = html.replace(/^- (.*$)/gm, "<p>• $1</p>");
 
     // 转换段落（处理空行）
-    const lines = html.split('\n');
+    const lines = html.split("\n");
     const processedLines: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
@@ -926,7 +1000,7 @@ export class DataProcessor {
       }
     }
 
-    return processedLines.join('');
+    return processedLines.join("");
   }
 
   /**
@@ -940,16 +1014,16 @@ export class DataProcessor {
    * 将Markdown转换为HTML
    */
   static convertMarkdownToHTML(markdown: string): string {
-    if (!markdown) return '';
+    if (!markdown) return "";
 
     // 简单的Markdown到HTML转换
     return markdown
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // 粗体
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')              // 斜体
-      .replace(/`(.*?)`/g, '<code>$1</code>')            // 行内代码
-      .replace(/\n\n/g, '</p><p>')                       // 段落
-      .replace(/\n/g, '<br>')                            // 换行
-      .replace(/^/, '<p>')                               // 开始段落
-      .replace(/$/, '</p>');                             // 结束段落
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") // 粗体
+      .replace(/\*(.*?)\*/g, "<em>$1</em>") // 斜体
+      .replace(/`(.*?)`/g, "<code>$1</code>") // 行内代码
+      .replace(/\n\n/g, "</p><p>") // 段落
+      .replace(/\n/g, "<br>") // 换行
+      .replace(/^/, "<p>") // 开始段落
+      .replace(/$/, "</p>"); // 结束段落
   }
 }

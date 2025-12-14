@@ -56,10 +56,6 @@ The plugin supports processing multiple items simultaneously:
 - **Error Recovery**: Robust error handling ensures partial batch failures don't affect successful items
 - **Performance Optimization**: Built-in delays between requests to respect API rate limits
 
-### Toolbar Button
-
-You can also use the OpenReview toolbar button in the Zotero interface for quick access.
-
 ### Settings
 
 Access plugin settings through `Edit` → `Preferences` → `OpenReview Fetcher`:
@@ -73,13 +69,16 @@ Access plugin settings through `Edit` → `Preferences` → `OpenReview Fetcher`
 ## Supported Paper Sources
 
 The plugin can extract OpenReview data from papers with:
+
 - OpenReview URLs in the URL field
 - DOIs that correspond to OpenReview papers
 
 ## Output Formats
 
 ### HTML Notes
+
 Reviews are saved as HTML notes attached to the Zotero item, including:
+
 - Reviewer information and ratings
 - Review text with formatting
 - Author responses
@@ -87,6 +86,7 @@ Reviews are saved as HTML notes attached to the Zotero item, including:
 - Review statistics (if enabled)
 
 ### Markdown Attachments (Recommended)
+
 Reviews are saved as Markdown files attached to the Zotero item. OpenReview API returns Markdown-formatted text, which is rendered as-is in many Markdown viewers. Therefore, markdown attachments are more recommended.
 
 ## Development
@@ -136,6 +136,7 @@ src/
 ## API Reference
 
 The plugin uses the OpenReview API v2. For more information about the API, visit:
+
 - [OpenReview API Documentation](https://docs.openreview.net/reference/api-v2)
 
 ## Contributing

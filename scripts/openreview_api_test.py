@@ -3,62 +3,62 @@ import getpass
 from collections import defaultdict
 
 def build_conversation_tree(notes):
-    """构建对话树结构"""
-    # 按forum和replyto组织notes
+    """Build conversation tree structure"""
+    # Organize notes by forum and replyto
     tree = defaultdict(list)
     root_notes = []
     
     for note in notes:
         if note.replyto is None:
-            # 根节点（主论文或顶级评审）
+            # Root node (main paper or top-level review)
             root_notes.append(note)
         else:
-            # 回复节点
+            # Reply node
             tree[note.replyto].append(note)
     
     return {'roots': root_notes, 'replies': dict(tree)}
 
 def get_note_type(note):
-    """识别note的类型"""
+    """Identify note type"""
     if not note.content:
         return "Unknown"
     
     content_keys = set(note.content.keys())
     
-    # 主论文
+    # Main paper
     if 'title' in content_keys and 'authors' in content_keys and 'abstract' in content_keys:
         return "Paper"
     
-    # 决定
+    # Decision
     elif 'decision' in content_keys:
         return "Decision"
     
-    # 元评审
+    # Meta review
     elif 'metareview' in content_keys:
         return "Meta Review"
     
-    # 正式评审
+    # Official review
     elif 'review' in content_keys or 'rating' in content_keys:
         return "Official Review"
     
-    # 作者回应
+    # Author response
     elif 'title' in content_keys and 'comment' in content_keys:
         title = note.content.get('title', {}).get('value', '').lower()
         if 'author' in title or 'response' in title:
             return "Author Response"
         return "Comment"
     
-    # 评论
+    # Comment
     elif 'comment' in content_keys:
         return "Comment"
     
     return "Other"
 
 def print_conversation_tree(tree, file_handle, level=0):
-    """递归打印对话树"""
+    """Recursively print conversation tree"""
     indent = "  " * level
     
-    # 将根节点按类型分组
+    # Group root nodes by type
     paper_notes = []
     review_notes = []
     other_notes = []
@@ -72,10 +72,10 @@ def print_conversation_tree(tree, file_handle, level=0):
         else:
             other_notes.append(root)
     
-    # 主论文放在最前面
+    # Place the main paper first
     all_sorted_roots = paper_notes
     
-    # 将所有非主论文的根节点合并，按时间从新到旧排序
+    # Merge all non-main paper root nodes and sort by time (new to old)
     non_paper_notes = other_notes + review_notes
     non_paper_notes.sort(key=lambda x: x.cdate, reverse=True)
     all_sorted_roots.extend(non_paper_notes)
@@ -83,10 +83,10 @@ def print_conversation_tree(tree, file_handle, level=0):
     for root in all_sorted_roots:
         note_type = get_note_type(root)
         
-        # 获取签名信息
+        # Get signature info
         signatures = root.signatures[0] if root.signatures else "Unknown"
         
-        # 获取标题或内容摘要
+        # Get title or content summary
         title = ""
         if root.content:
             if 'title' in root.content:
@@ -103,16 +103,16 @@ def print_conversation_tree(tree, file_handle, level=0):
         file_handle.write(f"{indent}创建时间: {root.cdate}\n")
         file_handle.write("\n")
         
-        # 递归处理回复
+        # Recursively handle replies
         if root.id in tree['replies']:
             print_replies(tree['replies'][root.id], tree['replies'], file_handle, level + 1)
 
 def print_replies(replies, all_replies, file_handle, level):
-    """打印回复，根据层级使用不同的排序策略"""
+    """Print replies using different sorting strategies by level"""
     indent = "  " * level
     
     if level == 1:
-        # 第一层回复（对主论文的直接回复）：按类型和时间排序
+        # First-level replies (direct replies to the main paper): sort by type and time
         review_replies = []
         other_replies = []
         
@@ -123,29 +123,29 @@ def print_replies(replies, all_replies, file_handle, level):
             else:
                 other_replies.append(reply)
         
-        # 评审按时间从新到旧排序
+        # Sort reviews from newest to oldest
         review_replies.sort(key=lambda x: x.cdate, reverse=True)
         
-        # 其他类型（决定、元评审、评论）按时间从新到旧排序
+        # Other types (decision, meta review, comment) sorted from newest to oldest
         other_replies.sort(key=lambda x: x.cdate, reverse=True)
         
-        # 先显示决定和元评审（按时间从新到旧），然后显示其他所有回复（按时间从新到旧）
+        # Show decisions and meta reviews first (newest to oldest), then all other replies (newest to oldest)
         decision_and_meta = [r for r in other_replies if get_note_type(r) in ["Decision", "Meta Review"]]
         other_all = [r for r in other_replies if get_note_type(r) not in ["Decision", "Meta Review"]] + review_replies
         
-        # 其他所有回复按时间从新到旧排序
+        # All other replies sorted from newest to oldest
         other_all.sort(key=lambda x: x.cdate, reverse=True)
         
         sorted_replies = decision_and_meta + other_all
     else:
-        # 其他层级：按时间从前到后排序（对话的自然发展顺序）
+        # Other levels: sort from earlier to later (natural conversation flow)
         sorted_replies = sorted(replies, key=lambda x: x.cdate)
     
     for reply in sorted_replies:
         note_type = get_note_type(reply)
         signatures = reply.signatures[0] if reply.signatures else "Unknown"
         
-        # 获取标题或内容摘要
+        # Get title or content summary
         title = ""
         if reply.content:
             if 'title' in reply.content:
@@ -160,7 +160,7 @@ def print_replies(replies, all_replies, file_handle, level):
         file_handle.write(f"{indent}  创建时间: {reply.cdate}\n")
         file_handle.write("\n")
         
-        # 递归处理子回复
+        # Recursively handle child replies
         if reply.id in all_replies:
             print_replies(all_replies[reply.id], all_replies, file_handle, level + 1)
 
@@ -174,11 +174,11 @@ print("论文链接: https://openreview.net/forum?id=jCPak79Kev")
 print(f"正在查询 forum ID: {forum_id}")
 
 try:
-    # 首先尝试无认证访问
+    # First try unauthenticated access
     print("\n=== 尝试无认证访问 ===")
     client = openreview.api.OpenReviewClient(baseurl='https://api2.openreview.net')
     
-    # 获取主论文
+    # Fetch main paper
     main_note = client.get_note(forum_id)
     print("✓ 成功获取主论文!")
     
@@ -191,20 +191,20 @@ try:
         abstract = main_note.content['abstract']['value']
         print(f"摘要: {abstract[:300]}...")
     
-    # 获取所有相关notes (评论、评审等)
+    # Get all related notes (comments, reviews, etc.)
     print(f"\n=== 获取相关notes ===")
     notes = client.get_notes(forum=forum_id)
     print(f"找到 {len(notes)} 条相关notes")
     
-    # 分类显示不同类型的notes
+    # Categorize and display different types of notes
     reviews = []
     comments = []
     main_paper = None
     
-    # 分析notes的完整结构
+    # Analyze the full structure of notes
     print(f"\n=== 分析Notes结构 ===")
     
-    # 将完整的note信息输出到文件
+    # Write complete note information to a file
     with open('openreview_notes_structure.txt', 'w', encoding='utf-8') as f:
         for i, note in enumerate(notes):
             f.write(f"=== Note {i+1} ===\n")
@@ -225,11 +225,11 @@ try:
     
     print(f"所有notes结构已保存到 openreview_notes_structure.txt 文件")
     
-    # 构建对话树
+    # Build conversation tree
     print(f"\n=== 构建对话树 ===")
     conversation_tree = build_conversation_tree(notes)
     
-    # 保存对话树
+    # Save conversation tree
     with open('openreview_conversation_tree.txt', 'w', encoding='utf-8') as f:
         f.write("OpenReview 对话树结构\n")
         f.write("=" * 50 + "\n\n")
@@ -243,18 +243,18 @@ except Exception as e:
     print("\n=== 尝试认证访问 ===")
     
     try:
-        # 获取用户凭据
+        # Get user credentials
         username = input("请输入您的 OpenReview 用户名: ")
         password = getpass.getpass("请输入您的 OpenReview 密码: ")
         
-        # 创建认证客户端
+        # Create authenticated client
         client = openreview.api.OpenReviewClient(
             baseurl='https://api2.openreview.net',
             username=username,
             password=password
         )
         
-        # 重复上面的查询逻辑
+        # Repeat the above query logic
         main_note = client.get_note(forum_id)
         print("✓ 认证访问成功!")
         

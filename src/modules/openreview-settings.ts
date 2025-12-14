@@ -1,7 +1,8 @@
 // OpenReview 设置模块 - 管理插件配置选项
+import { getString } from "../utils/locale";
 
 export interface OpenReviewSettings {
-  saveMode: 'html-note' | 'markdown-attachment'; // 统一的保存模式：HTML笔记或Markdown附件
+  saveMode: "html-note" | "markdown-attachment"; // 统一的保存模式：HTML笔记或Markdown附件
   includeStatistics: boolean;
   apiBaseUrl: string;
   maxRetries: number;
@@ -9,18 +10,18 @@ export interface OpenReviewSettings {
 }
 
 export class OpenReviewSettingsManager {
-  private static readonly PREF_PREFIX = 'extensions.openreview.';
+  private static readonly PREF_PREFIX = "extensions.openreview.";
 
   /**
    * 获取默认设置
    */
   static getDefaultSettings(): OpenReviewSettings {
     return {
-      saveMode: 'html-note', // 默认保存为HTML笔记
+      saveMode: "markdown-attachment", // 默认保存为markdown笔记
       includeStatistics: true,
-      apiBaseUrl: 'https://api.openreview.net',
+      apiBaseUrl: "https://api.openreview.net",
       maxRetries: 3,
-      requestTimeout: 30000
+      requestTimeout: 30000,
     };
   }
 
@@ -30,14 +31,19 @@ export class OpenReviewSettingsManager {
   static getCurrentSettings(): OpenReviewSettings {
     const defaults = this.getDefaultSettings();
     const settings = {
-      saveMode: this.getPref('saveMode', defaults.saveMode) as 'html-note' | 'markdown-attachment',
-      includeStatistics: this.getPref('includeStatistics', defaults.includeStatistics),
-      apiBaseUrl: this.getPref('apiBaseUrl', defaults.apiBaseUrl),
-      maxRetries: this.getPref('maxRetries', defaults.maxRetries),
-      requestTimeout: this.getPref('requestTimeout', defaults.requestTimeout),
+      saveMode: this.getPref("saveMode", defaults.saveMode) as
+        | "html-note"
+        | "markdown-attachment",
+      includeStatistics: this.getPref(
+        "includeStatistics",
+        defaults.includeStatistics,
+      ),
+      apiBaseUrl: this.getPref("apiBaseUrl", defaults.apiBaseUrl),
+      maxRetries: this.getPref("maxRetries", defaults.maxRetries),
+      requestTimeout: this.getPref("requestTimeout", defaults.requestTimeout),
     };
 
-    ztoolkit.log('getCurrentSettings:', settings);
+    ztoolkit.log("getCurrentSettings:", settings);
     return settings;
   }
 
@@ -45,7 +51,7 @@ export class OpenReviewSettingsManager {
    * 保存设置
    */
   static saveSettings(settings: Partial<OpenReviewSettings>): void {
-    ztoolkit.log('saveSettings called with:', settings);
+    ztoolkit.log("saveSettings called with:", settings);
     Object.entries(settings).forEach(([key, value]) => {
       ztoolkit.log(`Setting ${key} = ${value}`);
       this.setPref(key, value);
@@ -73,20 +79,22 @@ export class OpenReviewSettingsManager {
       const hasValue = Zotero.Prefs.get(prefKey) !== undefined;
       //ztoolkit.log(`getPref: ${prefKey} exists = ${hasValue}`);
 
-      if (typeof defaultValue === 'boolean') {
+      if (typeof defaultValue === "boolean") {
         // 对于布尔值，如果不存在则返回默认值
         if (!hasValue) {
-          ztoolkit.log(`getPref boolean: ${prefKey} not found, returning default ${defaultValue}`);
+          ztoolkit.log(
+            `getPref boolean: ${prefKey} not found, returning default ${defaultValue}`,
+          );
           return defaultValue;
         }
         const value = Zotero.Prefs.get(prefKey);
         //ztoolkit.log(`getPref boolean: ${prefKey} = ${value} (type: ${typeof value})`);
         return value;
-      } else if (typeof defaultValue === 'number') {
+      } else if (typeof defaultValue === "number") {
         const value = Zotero.Prefs.get(prefKey) ?? defaultValue;
         //ztoolkit.log(`getPref number: ${prefKey} = ${value}`);
         return value;
-      } else if (typeof defaultValue === 'string') {
+      } else if (typeof defaultValue === "string") {
         const value = Zotero.Prefs.get(prefKey) ?? defaultValue;
         //ztoolkit.log(`getPref string: ${prefKey} = ${value}`);
         return value;
@@ -117,18 +125,35 @@ export class OpenReviewSettingsManager {
   static showSettingsDialog(): void {
     const currentSettings = this.getCurrentSettings();
 
-    // 使用简单的提示框显示当前设置
-    const settingsText = `
-当前 OpenReview 插件设置:
+    const modeLabel =
+      currentSettings.saveMode === "html-note"
+        ? getString("openreview-pref-save-mode-html", "label")
+        : getString("openreview-pref-save-mode-markdown", "label");
+    const yesNo = getString(
+      currentSettings.includeStatistics
+        ? "openreview-settings-yes"
+        : "openreview-settings-no",
+    );
 
-✓ 保存模式: ${currentSettings.saveMode === 'html-note' ? 'HTML笔记' : 'Markdown附件'}
-✓ 包含统计信息: ${currentSettings.includeStatistics ? '是' : '否'}
-✓ API 基础URL: ${currentSettings.apiBaseUrl}
-✓ 最大重试次数: ${currentSettings.maxRetries}
-✓ 请求超时: ${currentSettings.requestTimeout}ms
+    const title = getString("openreview-settings-title");
+    const lineMode = getString("openreview-settings-save-mode", {
+      args: { mode: modeLabel },
+    });
+    const lineStats = getString("openreview-settings-include-statistics", {
+      args: { value: yesNo },
+    });
+    const lineUrl = getString("openreview-settings-api-base-url", {
+      args: { url: currentSettings.apiBaseUrl },
+    });
+    const lineRetries = getString("openreview-settings-max-retries", {
+      args: { retries: currentSettings.maxRetries },
+    });
+    const lineTimeout = getString("openreview-settings-request-timeout", {
+      args: { timeout: currentSettings.requestTimeout },
+    });
+    const hint = getString("openreview-settings-edit-hint");
 
-要修改设置，请编辑 Zotero 首选项中的 extensions.openreview.* 项目。
-    `.trim();
+    const settingsText = `${title}\n\n${lineMode}\n${lineStats}\n${lineUrl}\n${lineRetries}\n${lineTimeout}\n\n${hint}`;
 
     ztoolkit.getGlobal("alert")(settingsText);
   }
@@ -138,9 +163,16 @@ export class OpenReviewSettingsManager {
    */
   static toggleSaveMode(): void {
     const current = this.getCurrentSettings();
-    const newMode = current.saveMode === 'html-note' ? 'markdown-attachment' : 'html-note';
+    const newMode =
+      current.saveMode === "html-note" ? "markdown-attachment" : "html-note";
     this.saveSettings({ saveMode: newMode });
-    const modeText = newMode === 'html-note' ? 'HTML笔记' : 'Markdown附件';
-    ztoolkit.getGlobal("alert")(`已切换到${modeText}模式`);
+    const modeText =
+      newMode === "html-note"
+        ? getString("openreview-pref-save-mode-html", "label")
+        : getString("openreview-pref-save-mode-markdown", "label");
+    const message = getString("openreview-settings-switched-save-mode", {
+      args: { mode: modeText },
+    });
+    ztoolkit.getGlobal("alert")(message);
   }
 }

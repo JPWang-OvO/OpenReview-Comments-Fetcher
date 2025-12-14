@@ -5,31 +5,31 @@
   onload="Zotero.__addonInstance__.hooks.onPrefsEvent('load', { window });"
 >
   <label><html:h2 data-l10n-id="openreview-pref-title"></html:h2></label>
-  
-  <!-- 保存模式设置 -->
+
+  <!-- Save mode settings -->
   <vbox>
     <label data-l10n-id="openreview-pref-save-mode"></label>
     <radiogroup id="zotero-prefpane-__addonRef__-save-mode">
-      <radio 
-        id="zotero-prefpane-__addonRef__-save-mode-html" 
-        value="html-note" 
+      <radio
+        id="zotero-prefpane-__addonRef__-save-mode-html"
+        value="html-note"
         data-l10n-id="openreview-pref-save-mode-html"
       />
-      <radio 
-        id="zotero-prefpane-__addonRef__-save-mode-markdown" 
-        value="markdown-attachment" 
+      <radio
+        id="zotero-prefpane-__addonRef__-save-mode-markdown"
+        value="markdown-attachment"
         data-l10n-id="openreview-pref-save-mode-markdown"
       />
     </radiogroup>
   </vbox>
-  
-  <!-- 统计信息设置 -->
+
+  <!-- Statistics settings -->
   <checkbox
     id="zotero-prefpane-__addonRef__-include-statistics"
     data-l10n-id="openreview-pref-include-statistics"
   />
-  
-  <!-- API基础URL设置 -->
+
+  <!-- API base URL settings -->
   <hbox align="center">
     <html:label
       for="zotero-prefpane-__addonRef__-api-base-url"
@@ -38,12 +38,12 @@
     <html:input
       type="url"
       id="zotero-prefpane-__addonRef__-api-base-url"
-      style="flex: 1; margin-left: 10px;"
+      style="flex: 1; margin-left: 10px"
       data-l10n-id="openreview-pref-api-base-url-input"
     />
   </hbox>
-  
-  <!-- 最大重试次数设置 -->
+
+  <!-- Maximum retry count setting -->
   <hbox align="center">
     <html:label
       for="zotero-prefpane-__addonRef__-max-retries"
@@ -54,11 +54,11 @@
       id="zotero-prefpane-__addonRef__-max-retries"
       min="1"
       max="10"
-      style="width: 80px; margin-left: 10px;"
+      style="width: 80px; margin-left: 10px"
     />
   </hbox>
-  
-  <!-- 请求超时设置 -->
+
+  <!-- Request timeout setting -->
   <hbox align="center">
     <html:label
       for="zotero-prefpane-__addonRef__-request-timeout"
@@ -70,18 +70,17 @@
       min="5000"
       max="120000"
       step="1000"
-      style="width: 100px; margin-left: 10px;"
+      style="width: 100px; margin-left: 10px"
     />
   </hbox>
-  
-  <!-- 重置按钮 -->
+
+  <!-- Reset button -->
   <hbox>
     <button
       id="zotero-prefpane-__addonRef__-reset-defaults"
       data-l10n-id="openreview-pref-reset-defaults"
     />
   </hbox>
-  
 </groupbox>
 <vbox>
   <html:label

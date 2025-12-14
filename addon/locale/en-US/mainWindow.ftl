@@ -35,7 +35,7 @@ openreview-context-select-items-warning = Please select one or more items first
 openreview-progress-single-processing = Processing single item...
 openreview-progress-batch-processing = Processing { $count } items in batch...
 openreview-final-success-single = Completed!
-openreview-final-summary = Completed!
+openreview-final-summary = { $total } items processed, { $success } succeeded, { $failure } failed
 openreview-batch-failed = Batch processing failed: { $message }
 
 # Batch stage texts

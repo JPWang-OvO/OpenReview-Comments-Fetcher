@@ -3,13 +3,19 @@
  * 基于Python脚本逻辑实现的JavaScript版本OpenReview API调用功能
  */
 
-import { ErrorHandler, OpenReviewError, ErrorType, ValidationRules } from './error-handler';
-import { OpenReviewSettingsManager } from './openreview-settings';
+import {
+  ErrorHandler,
+  OpenReviewError,
+  ErrorType,
+  ValidationRules,
+} from "./error-handler";
+import { OpenReviewSettingsManager } from "./openreview-settings";
+import { getString } from "../utils/locale";
 
 export interface OpenReviewNote {
   id: string;
   forum: string;
-  replyto?: string;  // 添加replyto属性
+  replyto?: string; // 添加replyto属性
   signatures: string[];
   content: {
     [key: string]: {
@@ -62,7 +68,11 @@ export class OpenReviewClient {
   private username?: string;
   private password?: string;
 
-  constructor(baseUrl: string = 'https://api2.openreview.net', username?: string, password?: string) {
+  constructor(
+    baseUrl: string = "https://api2.openreview.net",
+    username?: string,
+    password?: string,
+  ) {
     this.baseUrl = baseUrl;
     this.username = username;
     this.password = password;
@@ -74,7 +84,7 @@ export class OpenReviewClient {
   async getNote(noteId: string): Promise<OpenReviewNote> {
     // 验证输入
     ErrorHandler.validateInput({ noteId }, [
-      ValidationRules.required('noteId')
+      ValidationRules.required("noteId"),
     ]);
 
     const url = `${this.baseUrl}/notes?id=${noteId}`;
@@ -86,7 +96,9 @@ export class OpenReviewClient {
         throw new OpenReviewError({
           type: ErrorType.API_ERROR,
           message: `Note with ID ${noteId} not found`,
-          userMessage: `未找到ID为 ${noteId} 的论文`
+          userMessage: getString("openreview-error-note-not-found", {
+            args: { id: noteId },
+          }),
         });
       }
 
@@ -100,7 +112,7 @@ export class OpenReviewClient {
   async getNotes(forumId: string): Promise<OpenReviewNote[]> {
     // 验证输入
     ErrorHandler.validateInput({ forumId }, [
-      ValidationRules.required('forumId')
+      ValidationRules.required("forumId"),
     ]);
 
     const url = `${this.baseUrl}/notes?forum=${forumId}`;
@@ -117,7 +129,7 @@ export class OpenReviewClient {
   async getPaperWithReviews(forumId: string): Promise<OpenReviewPaper> {
     // 验证输入
     ErrorHandler.validateInput({ forumId }, [
-      ValidationRules.required('forumId')
+      ValidationRules.required("forumId"),
     ]);
 
     try {
@@ -140,22 +152,21 @@ export class OpenReviewClient {
           }
         } catch (parseError) {
           // 记录解析错误但不中断整个流程
-          ztoolkit.log('Failed to parse note:', note.id, parseError);
+          ztoolkit.log("Failed to parse note:", note.id, parseError);
         }
       }
 
       return {
         id: mainNote.id,
-        title: mainNote.content.title?.value as string || '',
+        title: (mainNote.content.title?.value as string) || "",
         authors: (mainNote.content.authors?.value as string[]) || [],
         abstract: mainNote.content.abstract?.value as string,
         reviews,
-        comments
+        comments,
       };
-
     } catch (error) {
       const openReviewError = ErrorHandler.analyzeError(error);
-      ErrorHandler.logError(openReviewError, 'getPaperWithReviews');
+      ErrorHandler.logError(openReviewError, "getPaperWithReviews");
       throw openReviewError;
     }
   }
@@ -171,7 +182,7 @@ export class OpenReviewClient {
    * 判断note是否为评论
    */
   private isComment(note: OpenReviewNote): boolean {
-    return !!(note.content.comment);
+    return !!note.content.comment;
   }
 
   /**
@@ -180,11 +191,21 @@ export class OpenReviewClient {
   private parseReview(note: OpenReviewNote): OpenReviewReview {
     const review: OpenReviewReview = {
       id: note.id,
-      author: note.signatures?.[0] || 'Unknown'
+      author: note.signatures?.[0] || "Unknown",
     };
 
     // 提取评审的各个字段
-    const fields = ['rating', 'confidence', 'summary', 'strengths', 'weaknesses', 'questions', 'soundness', 'presentation', 'contribution'];
+    const fields = [
+      "rating",
+      "confidence",
+      "summary",
+      "strengths",
+      "weaknesses",
+      "questions",
+      "soundness",
+      "presentation",
+      "contribution",
+    ];
 
     for (const field of fields) {
       if (note.content[field]) {
@@ -201,8 +222,8 @@ export class OpenReviewClient {
   private parseComment(note: OpenReviewNote): OpenReviewComment {
     return {
       id: note.id,
-      author: note.signatures?.[0] || 'Unknown',
-      content: note.content.comment?.value as string || ''
+      author: note.signatures?.[0] || "Unknown",
+      content: (note.content.comment?.value as string) || "",
     };
   }
 
@@ -213,28 +234,28 @@ export class OpenReviewClient {
     const settings = OpenReviewSettingsManager.getCurrentSettings();
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'User-Agent': 'Zotero-OpenReview-Plugin/1.0.0'
+      "Content-Type": "application/json",
+      "User-Agent": "Zotero-OpenReview-Plugin/1.0.0",
     };
 
     // 如果有认证信息，添加认证头
     if (this.username && this.password) {
       const credentials = btoa(`${this.username}:${this.password}`);
-      headers['Authorization'] = `Basic ${credentials}`;
+      headers["Authorization"] = `Basic ${credentials}`;
     }
 
     try {
       // 创建超时Promise
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
-          reject(new Error('Request timeout'));
+          reject(new Error("Request timeout"));
         }, settings.requestTimeout);
       });
 
       // 创建fetch Promise
       const fetchPromise = fetch(url, {
-        method: 'GET',
-        headers
+        method: "GET",
+        headers,
       });
 
       // 使用Promise.race实现超时机制
@@ -246,7 +267,7 @@ export class OpenReviewClient {
           message: `HTTP error! status: ${response.status}`,
           statusCode: response.status,
           retryable: this.isRetryableStatus(response.status),
-          userMessage: this.getUserMessageFromStatus(response.status)
+          userMessage: this.getUserMessageFromStatus(response.status),
         });
       }
 
@@ -257,12 +278,14 @@ export class OpenReviewClient {
       }
 
       // 处理超时错误
-      if (error instanceof Error && error.message === 'Request timeout') {
+      if (error instanceof Error && error.message === "Request timeout") {
         throw new OpenReviewError({
           type: ErrorType.NETWORK_ERROR,
-          message: 'Request timeout',
+          message: "Request timeout",
           retryable: true,
-          userMessage: `请求超时（${settings.requestTimeout}ms），请检查网络连接`
+          userMessage: getString("openreview-error-request-timeout", {
+            args: { timeout: settings.requestTimeout },
+          }),
         });
       }
 
@@ -291,20 +314,20 @@ export class OpenReviewClient {
   private getUserMessageFromStatus(status: number): string {
     switch (status) {
       case 401:
-        return '认证失败，请检查用户名和密码';
+        return getString("openreview-error-authentication-failed");
       case 403:
-        return '访问被拒绝，可能需要登录或权限不足';
+        return getString("openreview-error-access-denied");
       case 404:
-        return '请求的资源不存在';
+        return getString("openreview-error-resource-not-found");
       case 429:
-        return 'API 请求频率过高，请稍后重试';
+        return getString("openreview-error-rate-limit");
       case 500:
-        return 'OpenReview 服务器内部错误';
+        return getString("openreview-error-server-error");
       case 502:
       case 503:
-        return 'OpenReview 服务暂时不可用，请稍后重试';
+        return getString("openreview-error-service-unavailable");
       default:
-        return `请求失败 (HTTP ${status})`;
+        return getString("openreview-error-http-failed", { args: { status } });
     }
   }
 
@@ -314,60 +337,6 @@ export class OpenReviewClient {
   static extractForumId(url: string): string | null {
     const match = url.match(/[?&]id=([^&]+)/);
     return match ? match[1] : null;
-  }
-
-  /**
-   * 格式化评审数据为可读文本
-   */
-  static formatReviewsAsText(paper: OpenReviewPaper): string {
-    let text = `# ${paper.title}\n\n`;
-
-    if (paper.authors.length > 0) {
-      text += `**作者:** ${paper.authors.join(', ')}\n\n`;
-    }
-
-    if (paper.abstract) {
-      text += `**摘要:** ${paper.abstract}\n\n`;
-    }
-
-    if (paper.reviews.length > 0) {
-      text += `## 评审 (${paper.reviews.length} 条)\n\n`;
-
-      paper.reviews.forEach((review, index) => {
-        text += `### 评审 ${index + 1}\n`;
-        text += `**评审者:** ${review.author}\n`;
-
-        if (review.rating) text += `**评分:** ${review.rating}\n`;
-        if (review.confidence) text += `**置信度:** ${review.confidence}\n`;
-        if (review.summary) text += `**摘要:** ${review.summary}\n\n`;
-        if (review.strengths) text += `**优点:** ${review.strengths}\n\n`;
-        if (review.weaknesses) text += `**缺点:** ${review.weaknesses}\n\n`;
-        if (review.questions) text += `**问题:** ${review.questions}\n\n`;
-
-        // 其他字段
-        const otherFields = ['soundness', 'presentation', 'contribution'];
-        otherFields.forEach(field => {
-          if (review[field]) {
-            text += `**${field.charAt(0).toUpperCase() + field.slice(1)}:** ${review[field]}\n`;
-          }
-        });
-
-        text += '\n---\n\n';
-      });
-    }
-
-    if (paper.comments.length > 0) {
-      text += `## 评论和回复 (${paper.comments.length} 条)\n\n`;
-
-      paper.comments.forEach((comment, index) => {
-        text += `### 评论 ${index + 1}\n`;
-        text += `**作者:** ${comment.author}\n`;
-        text += `**内容:** ${comment.content}\n\n`;
-        text += '---\n\n';
-      });
-    }
-
-    return text;
   }
 }
 
